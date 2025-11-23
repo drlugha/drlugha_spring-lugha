@@ -1,5 +1,11 @@
 package drlugha.user_app.controller;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import drlugha.user_app.dto.ArticleDTO;
+import drlugha.user_app.service.ArticleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,12 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.AmazonS3;
-import drlugha.user_app.dto.ArticleDTO;
-import drlugha.user_app.service.ArticleService;
 
 import java.io.IOException;
 import java.net.URL;
@@ -62,7 +62,7 @@ public class ArticleController {
 
         ArticleDTO createdArticle = articleService.createArticle(articleDTO);
 
-        populatePresignedImage(createdArticle, true);
+        populatePresignedImage(createdArticle);
 
         return ResponseEntity.ok().body(createdArticle);
     }
@@ -106,7 +106,7 @@ public class ArticleController {
             return ResponseEntity.notFound().build();
         }
 
-        populatePresignedImage(article, true);
+        populatePresignedImage(article);
 
         return ResponseEntity.ok().body(article);
     }
@@ -115,7 +115,7 @@ public class ArticleController {
     @GetMapping
     public ResponseEntity<List<ArticleDTO>> getArticles() {
         List<ArticleDTO> articles = articleService.getAllArticles();
-        articles.forEach(article -> populatePresignedImage(article, false));
+        articles.forEach(article -> populatePresignedImage(article));
         return ResponseEntity.ok().body(articles);
     }
 
@@ -123,14 +123,14 @@ public class ArticleController {
     public ResponseEntity<ArticleDTO> getArticleById(@PathVariable("id") Long id) {
         ArticleDTO article = articleService.getArticleById(id);
         if (article != null) {
-            populatePresignedImage(article, false);
+            populatePresignedImage(article);
             return ResponseEntity.ok().body(article);
         } else {
             return ResponseEntity.notFound().build();
         }
     }
 
-    private void populatePresignedImage(ArticleDTO article, boolean persistKeyIfDerived) {
+    private void populatePresignedImage(ArticleDTO article) {
         if (article == null) {
             return;
         }
@@ -138,9 +138,7 @@ public class ArticleController {
         if ((objectKey == null || objectKey.isBlank()) && article.getImageUrl() != null) {
             objectKey = extractS3KeyFromUrl(article.getImageUrl());
             article.setImageKey(objectKey);
-            if (persistKeyIfDerived && objectKey != null) {
-                articleService.updateArticle(article);
-            }
+            articleService.updateArticle(article);
         }
 
         if (objectKey == null || objectKey.isBlank()) {

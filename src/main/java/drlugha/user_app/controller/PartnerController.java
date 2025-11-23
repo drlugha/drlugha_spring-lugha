@@ -60,7 +60,7 @@ public class PartnerController {
 
         PartnerDTO createdPartner = partnerService.createPartner(partnerDTO);
 
-        populatePresignedImage(createdPartner, true);
+        populatePresignedImage(createdPartner);
 
         return ResponseEntity.ok().body(createdPartner);
     }
@@ -69,7 +69,7 @@ public class PartnerController {
     public ResponseEntity<List<PartnerDTO>> getPartners() {
         List<PartnerDTO> partners = partnerService.getAllPartners();
 
-        partners.forEach(partner -> populatePresignedImage(partner, false));
+        partners.forEach(partner -> populatePresignedImage(partner));
 
         return ResponseEntity.ok().body(partners);
     }
@@ -92,14 +92,12 @@ public class PartnerController {
     }
 
 
-
-
     @GetMapping("/getPartnerById/{id}")
     public ResponseEntity<PartnerDTO> getPartnerById(@PathVariable("id") Long id) {
         // Retrieve the partner details from the database using the provided ID
         PartnerDTO partner = partnerService.getPartnerByIdFromDatabase(id);
         if (partner != null) {
-            populatePresignedImage(partner, false);
+            populatePresignedImage(partner);
             return ResponseEntity.ok().body(partner);
         } else {
             return ResponseEntity.notFound().build();
@@ -115,12 +113,12 @@ public class PartnerController {
             return ResponseEntity.notFound().build();
         }
 
-        populatePresignedImage(partner, true);
+        populatePresignedImage(partner);
 
         return ResponseEntity.ok().body(partner);
     }
 
-    private void populatePresignedImage(PartnerDTO partner, boolean persistKeyIfDerived) {
+    private void populatePresignedImage(PartnerDTO partner) {
         if (partner == null) {
             return;
         }
@@ -128,9 +126,7 @@ public class PartnerController {
         if ((objectKey == null || objectKey.isBlank()) && partner.getImageUrl() != null) {
             objectKey = extractObjectKeyFromUrl(partner.getImageUrl());
             partner.setImageKey(objectKey);
-            if (persistKeyIfDerived && objectKey != null) {
-                partnerService.updatePartner(partner);
-            }
+            partnerService.updatePartner(partner);
         }
 
         if (objectKey == null || objectKey.isBlank()) {
