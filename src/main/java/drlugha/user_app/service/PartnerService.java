@@ -1,21 +1,20 @@
 package drlugha.user_app.service;
 
-import drlugha.user_app.dto.PartnerDTO;
-import drlugha.user_app.entity.Partner;
-import drlugha.user_app.repository.PartnerRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
+import drlugha.user_app.dto.PartnerDTO;
+import drlugha.user_app.entity.Partner;
+import drlugha.user_app.repository.PartnerRepository;
 
 @Service
 public class PartnerService {
 
     private final PartnerRepository partnerRepository;
 
-    @Autowired
     public PartnerService(PartnerRepository partnerRepository) {
         this.partnerRepository = partnerRepository;
     }
@@ -65,8 +64,9 @@ public class PartnerService {
         partner.setLinkedinUrl(partnerDTO.getLinkedinUrl());
         partner.setTwitterUrl(partnerDTO.getTwitterUrl());
         partner.setFacebookUrl(partnerDTO.getFacebookUrl());
-        partner.setImageUrl(partnerDTO.getImageUrl());
-        partner.setImageUrlExpiration(partnerDTO.getImageUrlExpiration());
+        partner.setImageKey(partnerDTO.getImageKey());
+        partner.setImageUrl(null);
+        partner.setImageUrlExpiration(null);
 
         Partner savedPartner = partnerRepository.save(partner);
 
@@ -99,8 +99,9 @@ public class PartnerService {
             partner.setLinkedinUrl(partnerDTO.getLinkedinUrl());
             partner.setTwitterUrl(partnerDTO.getTwitterUrl());
             partner.setFacebookUrl(partnerDTO.getFacebookUrl());
-            partner.setImageUrl(partnerDTO.getImageUrl());
-            partner.setImageUrlExpiration(partnerDTO.getImageUrlExpiration());
+            if (partnerDTO.getImageKey() != null) {
+                partner.setImageKey(partnerDTO.getImageKey());
+            }
 
             partnerRepository.save(partner);
         }
@@ -115,9 +116,9 @@ public class PartnerService {
         partnerDTO.setLinkedinUrl(partner.getLinkedinUrl());
         partnerDTO.setTwitterUrl(partner.getTwitterUrl());
         partnerDTO.setFacebookUrl(partner.getFacebookUrl());
+        partnerDTO.setImageKey(partner.getImageKey());
         partnerDTO.setImageUrl(partner.getImageUrl());
         partnerDTO.setImageUrlExpiration(partner.getImageUrlExpiration());
         return partnerDTO;
     }
 }
-

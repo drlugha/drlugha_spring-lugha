@@ -49,10 +49,8 @@ public class ArticleController {
             return ResponseEntity.badRequest().body(null);
         }
 
-        // Upload image to Amazon S3 and get pre-signed URL
-        String imageUrl = uploadImageToS3(imageFile);
+        String imageKey = uploadImageToS3(imageFile);
 
-        // Create ArticleDTO and set user ID and image URL
         ArticleDTO articleDTO = new ArticleDTO();
         articleDTO.setUserId(userId);
         articleDTO.setArticleCategory(articleCategory);
@@ -60,26 +58,23 @@ public class ArticleController {
         articleDTO.setArticleName(articleName);
         articleDTO.setArticleTitle(articleTitle);
         articleDTO.setDescription(description);
-        articleDTO.setImageUrl(imageUrl);
+        articleDTO.setImageKey(imageKey);
 
-        // Validate articleDTO and create the article
         ArticleDTO createdArticle = articleService.createArticle(articleDTO);
 
-        // Return the created article in the response
+        populatePresignedImage(createdArticle, true);
+
         return ResponseEntity.ok().body(createdArticle);
     }
 
     private String uploadImageToS3(MultipartFile imageFile) throws IOException {
-        // Generate a unique file name
-        String fileName = UUID.randomUUID().toString() + "-" + StringUtils.cleanPath(Objects.requireNonNull(imageFile.getOriginalFilename()));
+        String fileName = UUID.randomUUID() + "-" + StringUtils.cleanPath(Objects.requireNonNull(imageFile.getOriginalFilename()));
 
-        // Upload image to S3 bucket
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentLength(imageFile.getSize());
         amazonS3.putObject(new PutObjectRequest(bucketName, fileName, imageFile.getInputStream(), metadata));
 
-        // Generate presigned URL for the uploaded image
-        return generatePresignedUrl(fileName, 7).toString();
+        return fileName;
     }
 
     private URL generatePresignedUrl(String fileName, int daysUntilExpiration) {
@@ -111,18 +106,7 @@ public class ArticleController {
             return ResponseEntity.notFound().build();
         }
 
-        // Extract the S3 key from the current image URL
-        String s3Key = extractS3KeyFromUrl(article.getImageUrl());
-        if (s3Key == null) {
-            return ResponseEntity.badRequest().body(null);
-        }
-
-        // Generate a new pre-signed URL
-        URL newImageUrl = generatePresignedUrl(s3Key, 7);
-
-        // Update the article with the new URL
-        article.setImageUrl(newImageUrl.toString());
-        articleService.updateArticle(article);
+        populatePresignedImage(article, true);
 
         return ResponseEntity.ok().body(article);
     }
@@ -131,6 +115,7 @@ public class ArticleController {
     @GetMapping
     public ResponseEntity<List<ArticleDTO>> getArticles() {
         List<ArticleDTO> articles = articleService.getAllArticles();
+        articles.forEach(article -> populatePresignedImage(article, false));
         return ResponseEntity.ok().body(articles);
     }
 
@@ -138,10 +123,32 @@ public class ArticleController {
     public ResponseEntity<ArticleDTO> getArticleById(@PathVariable("id") Long id) {
         ArticleDTO article = articleService.getArticleById(id);
         if (article != null) {
+            populatePresignedImage(article, false);
             return ResponseEntity.ok().body(article);
         } else {
             return ResponseEntity.notFound().build();
         }
     }
-}
 
+    private void populatePresignedImage(ArticleDTO article, boolean persistKeyIfDerived) {
+        if (article == null) {
+            return;
+        }
+        String objectKey = article.getImageKey();
+        if ((objectKey == null || objectKey.isBlank()) && article.getImageUrl() != null) {
+            objectKey = extractS3KeyFromUrl(article.getImageUrl());
+            article.setImageKey(objectKey);
+            if (persistKeyIfDerived && objectKey != null) {
+                articleService.updateArticle(article);
+            }
+        }
+
+        if (objectKey == null || objectKey.isBlank()) {
+            article.setImageUrl(null);
+            return;
+        }
+
+        URL presigned = generatePresignedUrl(objectKey, 7);
+        article.setImageUrl(presigned.toString());
+    }
+}

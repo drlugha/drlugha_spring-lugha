@@ -7,6 +7,7 @@ public class ArticleDTO {
     private String articleSubCategory;
     private String description;
     private String imageUrl; // Updated to store the image URL
+    private String imageKey; // Stable S3 object key persisted
     private Long userId; // Updated to store the user ID
 
     private Long id;
@@ -58,6 +59,14 @@ public class ArticleDTO {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getImageKey() {
+        return imageKey;
+    }
+
+    public void setImageKey(String imageKey) {
+        this.imageKey = imageKey;
     }
 
     public Long getUserId() {

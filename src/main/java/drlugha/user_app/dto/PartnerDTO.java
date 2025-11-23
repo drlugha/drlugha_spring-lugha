@@ -11,6 +11,7 @@ public class PartnerDTO {
     private String twitterUrl;
     private String facebookUrl;
     private String imageUrl;
+    private String imageKey;
     private Date imageUrlExpiration; // New field to store URL expiration time
 
     // Getters and setters
@@ -78,6 +79,14 @@ public class PartnerDTO {
         this.imageUrl = imageUrl;
     }
 
+    public String getImageKey() {
+        return imageKey;
+    }
+
+    public void setImageKey(String imageKey) {
+        this.imageKey = imageKey;
+    }
+
     public Date getImageUrlExpiration() {
         return imageUrlExpiration;
     }
@@ -86,4 +95,3 @@ public class PartnerDTO {
         this.imageUrlExpiration = imageUrlExpiration;
     }
 }
-

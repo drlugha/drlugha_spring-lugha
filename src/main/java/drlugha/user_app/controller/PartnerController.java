@@ -43,21 +43,12 @@ public class PartnerController {
                                                     @RequestParam("twitterUrl") String twitterUrl,
                                                     @RequestParam("facebookUrl") String facebookUrl,
                                                     @RequestParam("partnerImage") MultipartFile partnerImage) throws IOException {
-        // Generate unique file name
-        String fileName = UUID.randomUUID().toString() + "-" + partnerImage.getOriginalFilename();
+        String objectKey = UUID.randomUUID() + "-" + partnerImage.getOriginalFilename();
 
-        // Upload image to Amazon S3
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentLength(partnerImage.getSize());
-        amazonS3.putObject(new PutObjectRequest(bucketName, fileName, partnerImage.getInputStream(), metadata));
+        amazonS3.putObject(new PutObjectRequest(bucketName, objectKey, partnerImage.getInputStream(), metadata));
 
-        // Generate pre-signed URL for the uploaded image
-        GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucketName, fileName);
-        // Set expiration time to 1 hour (3600 seconds) from the current time
-        generatePresignedUrlRequest.setExpiration(new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000));
-        URL imageUrl = amazonS3.generatePresignedUrl(generatePresignedUrlRequest);
-
-        // Create PartnerDTO and set image URL
         PartnerDTO partnerDTO = new PartnerDTO();
         partnerDTO.setPartnerName(partnerName);
         partnerDTO.setTitle(title);
@@ -65,13 +56,12 @@ public class PartnerController {
         partnerDTO.setLinkedinUrl(linkedinUrl);
         partnerDTO.setTwitterUrl(twitterUrl);
         partnerDTO.setFacebookUrl(facebookUrl);
-        partnerDTO.setImageUrl(imageUrl.toString());
-        partnerDTO.setImageUrlExpiration(generatePresignedUrlRequest.getExpiration());
+        partnerDTO.setImageKey(objectKey);
 
-        // Save partner to database
         PartnerDTO createdPartner = partnerService.createPartner(partnerDTO);
 
-        // Return the created partner in the response
+        populatePresignedImage(createdPartner, true);
+
         return ResponseEntity.ok().body(createdPartner);
     }
 
@@ -79,7 +69,7 @@ public class PartnerController {
     public ResponseEntity<List<PartnerDTO>> getPartners() {
         List<PartnerDTO> partners = partnerService.getAllPartners();
 
-        // Do not manually set the IDs here. The IDs should come from the database.
+        partners.forEach(partner -> populatePresignedImage(partner, false));
 
         return ResponseEntity.ok().body(partners);
     }
@@ -109,17 +99,12 @@ public class PartnerController {
         // Retrieve the partner details from the database using the provided ID
         PartnerDTO partner = partnerService.getPartnerByIdFromDatabase(id);
         if (partner != null) {
+            populatePresignedImage(partner, false);
             return ResponseEntity.ok().body(partner);
         } else {
             return ResponseEntity.notFound().build();
         }
     }
-
-
-
-
-
-
 
     @GetMapping("/{id}/renew-url")
     public ResponseEntity<PartnerDTO> renewImageUrl(@PathVariable("id") Long id) {
@@ -130,44 +115,46 @@ public class PartnerController {
             return ResponseEntity.notFound().build();
         }
 
-        // Extract the object key from the current image URL
-        String imageUrl = partner.getImageUrl();
-        String objectKey = extractObjectKeyFromUrl(imageUrl);
-
-        // Generate a new URL and update the partner's image URL
-        GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucketName, objectKey);
-
-        // Set expiration time to 7 days from the current time
-        Date expirationTime = new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000); // 7 days expiration
-        generatePresignedUrlRequest.setExpiration(expirationTime);
-
-        // Generate a new pre-signed URL
-        URL newImageUrl = amazonS3.generatePresignedUrl(generatePresignedUrlRequest);
-
-        // Update the partner with the new URL and expiration time
-        partner.setImageUrl(newImageUrl.toString());
-        partner.setImageUrlExpiration(expirationTime); // Assuming you have a field to store the URL expiration in the PartnerDTO
-
-        // Save the updated partner to the database
-        partnerService.updatePartner(partner);
-
-        // Log the new URL for debugging
-        System.out.println("Generated new presigned URL: " + newImageUrl.toString());
+        populatePresignedImage(partner, true);
 
         return ResponseEntity.ok().body(partner);
     }
 
-    // Helper method to extract the object key from the URL
+    private void populatePresignedImage(PartnerDTO partner, boolean persistKeyIfDerived) {
+        if (partner == null) {
+            return;
+        }
+        String objectKey = partner.getImageKey();
+        if ((objectKey == null || objectKey.isBlank()) && partner.getImageUrl() != null) {
+            objectKey = extractObjectKeyFromUrl(partner.getImageUrl());
+            partner.setImageKey(objectKey);
+            if (persistKeyIfDerived && objectKey != null) {
+                partnerService.updatePartner(partner);
+            }
+        }
+
+        if (objectKey == null || objectKey.isBlank()) {
+            partner.setImageUrl(null);
+            partner.setImageUrlExpiration(null);
+            return;
+        }
+
+        Date expirationTime = new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000);
+        GeneratePresignedUrlRequest generatePresignedUrlRequest = new GeneratePresignedUrlRequest(bucketName, objectKey);
+        generatePresignedUrlRequest.setExpiration(expirationTime);
+        URL imageUrl = amazonS3.generatePresignedUrl(generatePresignedUrlRequest);
+
+        partner.setImageUrl(imageUrl.toString());
+        partner.setImageUrlExpiration(expirationTime);
+    }
+
     private String extractObjectKeyFromUrl(String url) {
         try {
             URL u = new URL(url);
-            return u.getPath().substring(1); // Remove the leading slash
+            String path = u.getPath();
+            return (path != null && path.length() > 1) ? path.substring(1) : null;
         } catch (Exception e) {
-            throw new RuntimeException("Invalid image URL format");
+            return null;
         }
     }
 }
-
-
-
-

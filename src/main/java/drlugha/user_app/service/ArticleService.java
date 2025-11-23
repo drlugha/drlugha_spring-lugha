@@ -17,7 +17,7 @@ public class ArticleService {
     @Autowired
     private ArticleRepository articleRepository;
 
-    public ArticleDTO createArticle(ArticleDTO articleDTO) throws IOException {
+    public ArticleDTO createArticle(ArticleDTO articleDTO) {
         // Perform any business logic/validation here before saving to repository
         // Example: Mapping DTO to entity
         Article article = new Article();
@@ -27,8 +27,9 @@ public class ArticleService {
         article.setArticleTitle(articleDTO.getArticleTitle());
         article.setDescription(articleDTO.getDescription());
 
-        // Set the image URL directly from the DTO
-        article.setImageUrl(articleDTO.getImageUrl());
+        // Persist the stable S3 object key instead of a presigned URL
+        article.setImageKey(articleDTO.getImageKey());
+        article.setImageUrl(null);
 
         // Save the article to the repository
         article = articleRepository.save(article);
@@ -55,7 +56,9 @@ public class ArticleService {
             article.setArticleSubCategory(articleDTO.getArticleSubCategory());
             article.setArticleTitle(articleDTO.getArticleTitle());
             article.setDescription(articleDTO.getDescription());
-            article.setImageUrl(articleDTO.getImageUrl());
+            if (articleDTO.getImageKey() != null) {
+                article.setImageKey(articleDTO.getImageKey());
+            }
 
             // Save the updated article
             article = articleRepository.save(article);
@@ -83,6 +86,7 @@ public class ArticleService {
         articleDTO.setArticleSubCategory(article.getArticleSubCategory());
         articleDTO.setArticleTitle(article.getArticleTitle());
         articleDTO.setDescription(article.getDescription());
+        articleDTO.setImageKey(article.getImageKey());
         articleDTO.setImageUrl(article.getImageUrl());
         return articleDTO;
     }

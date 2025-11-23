@@ -23,6 +23,9 @@ public class Article extends BaseEntity {
     @Column(columnDefinition = "TEXT") // Use TEXT data type for 'description' field
     private String imageUrl; // Updated to store the image URL
 
+    @Column
+    private String imageKey; // Stable S3 object key
+
     public Long getId() {
         return id;
     }
@@ -79,7 +82,14 @@ public class Article extends BaseEntity {
         this.imageUrl = imageUrl;
     }
 
+    public String getImageKey() {
+        return imageKey;
+    }
+
+    public void setImageKey(String imageKey) {
+        this.imageKey = imageKey;
+    }
+
     // Getters and setters
     // Constructors, etc.
 }
-

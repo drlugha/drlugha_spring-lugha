@@ -27,6 +27,9 @@ public class Partner extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String imageUrl; // Field to store image URL
 
+    @Column
+    private String imageKey; // Stable S3 object key
+
     @Temporal(TemporalType.TIMESTAMP)
     private Date imageUrlExpiration; // Field to store URL expiration time
 
@@ -95,6 +98,14 @@ public class Partner extends BaseEntity {
         this.imageUrl = imageUrl;
     }
 
+    public String getImageKey() {
+        return imageKey;
+    }
+
+    public void setImageKey(String imageKey) {
+        this.imageKey = imageKey;
+    }
+
     public Date getImageUrlExpiration() {
         return imageUrlExpiration;
     }
@@ -103,4 +114,3 @@ public class Partner extends BaseEntity {
         this.imageUrlExpiration = imageUrlExpiration;
     }
 }
-
